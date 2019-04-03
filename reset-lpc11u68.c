@@ -62,14 +62,12 @@ static struct platform_driver lpc11u68_reset_driver = {
 // reset function
 void gpio_reset_assert(private_data_t *data)
 {
-    //gpiod_set_value(reset, data->asserted_value);
-    gpiod_set_value(reset, 1);
+    gpiod_set_value(reset, data->asserted_value);
 }
 
 void gpio_reset_deassert(private_data_t *data)
 {
-    //gpiod_set_value(reset, !data->asserted_value);
-    gpiod_set_value(reset, 0);
+    gpiod_set_value(reset, !data->asserted_value);
 }
 
 int gpio_reset_status(private_data_t *data)
@@ -89,8 +87,6 @@ void gpio_reset_reset(private_data_t *data)
 static ssize_t isp_store(struct class *cls, struct class_attribute *attr, const char *buff, size_t len)
 {
     private_data_t *priv = container_of(cls, private_data_t, device_class);
-    PINFO ("Inside isp_store %d\n", priv);
-    PINFO("sleep %d s, asserted %d, data name %s\n", priv->duration_ms, priv->asserted_value, priv->rcdev.owner);
     if (buff[0] == '1' && (len == 2))
     {
         gpiod_set_value(isp, 0);
@@ -107,7 +103,6 @@ static ssize_t isp_show(struct class *cls, struct class_attribute *attr, char *b
 { 
     private_data_t *priv = container_of(cls, private_data_t, device_class);
     int retval;
-    PINFO ("Inside isp_show\n");
 
     retval = scnprintf(buf, PAGE_SIZE, "%s\n", priv->isp_mode ? "isp mode" : "normal mode");
 
@@ -119,7 +114,6 @@ static CLASS_ATTR_RW(isp);
 static ssize_t reset_store(struct class *cls, struct class_attribute *attr, const char *buff, size_t len)
 {
     private_data_t *priv = container_of(cls, private_data_t, device_class);
-    PINFO("inside reset_store\n");
 
     gpio_reset_reset(priv);
     priv->isp_mode = false;
@@ -221,7 +215,6 @@ static int driver_probe (struct platform_device *pdev)
     gpiod_set_value(reset, 0);
     gpiod_set_value(isp, 1);
 
-
     // class create
     /*
     data->device_class = class_create(THIS_MODULE, DRIVER_NAME);
@@ -259,13 +252,17 @@ static int driver_probe (struct platform_device *pdev)
     // get device tree property
     retval = of_property_read_u32(pdev->dev.of_node, "asserted-state", &data->asserted_value);
     if (IS_ERR(retval))
+    {
         data->asserted_value = true;
+        PINFO("Can't find asserted-state property, using default value (true)\n");
+    }
 
 	retval = of_property_read_u32(pdev->dev.of_node, "duration-ms", &data->duration_ms);
-    PINFO("RETVAL %d\n", IS_ERR(retval));
-    if (IS_ERR(retval))    
+    if (IS_ERR(retval))   
+    {
         data->duration_ms = 2000;
-    PINFO("duration %d\n", data->duration_ms);
+        PINFO("Can't find duration-ms property, using default value (2000)\n");
+    } 
     if (of_property_read_bool(pdev->dev.of_node, "auto"))
 		gpio_reset_reset(data);
 
